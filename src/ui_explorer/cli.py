@@ -41,7 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--max-routes", type=int, default=25)
     parser.add_argument("--max-clicks-per-route", type=int, default=8)
-    parser.add_argument("--max-seconds", type=int, default=600)
+    parser.add_argument("--max-seconds", type=int, default=3600)
     parser.add_argument(
         "--login-timeout-seconds",
         type=int,

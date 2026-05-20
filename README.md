@@ -46,6 +46,10 @@ continues after the browser returns to the original app origin/path.
 
 Artifacts are written under `artifacts/run-YYYYMMDD-HHMMSS/`.
 
+The default total runtime limit is one hour (`--max-seconds 3600`), which is
+intended to leave room for slower local vision models. Lower it for quick
+smoke tests.
+
 ## Safety Defaults
 
 The crawler avoids controls with labels such as delete, remove, archive, submit,

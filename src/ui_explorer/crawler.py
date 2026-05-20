@@ -42,7 +42,7 @@ class CrawlConfig:
     artifact_dir: str = "artifacts"
     max_routes: int = 25
     max_clicks_per_route: int = 8
-    max_seconds: int = 600
+    max_seconds: int = 3600
     login_timeout_seconds: int = 900
 
 
