@@ -46,9 +46,12 @@ continues after the browser returns to the original app origin/path.
 
 Artifacts are written under `artifacts/run-YYYYMMDD-HHMMSS/`.
 
-The default total runtime limit is one hour (`--max-seconds 3600`), which is
-intended to leave room for slower local vision models. Lower it for quick
-smoke tests.
+Default timing limits:
+
+- `--max-seconds 1200`: total run budget
+- `--page-settle-timeout-seconds 600`: wait for slow app requests after navigation
+- `--vision-timeout-seconds 300`: wait for each vision model request
+- `--llm-timeout-seconds 120`: wait for the final text review request
 
 ## Safety Defaults
 

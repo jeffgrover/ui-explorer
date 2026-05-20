@@ -41,7 +41,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--max-routes", type=int, default=25)
     parser.add_argument("--max-clicks-per-route", type=int, default=8)
-    parser.add_argument("--max-seconds", type=int, default=3600)
+    parser.add_argument("--max-seconds", type=int, default=1200)
+    parser.add_argument(
+        "--page-settle-timeout-seconds",
+        type=int,
+        default=600,
+        help="How long to wait for app network activity to settle after navigation.",
+    )
+    parser.add_argument(
+        "--vision-timeout-seconds",
+        type=int,
+        default=300,
+        help="How long to wait for each vision model request.",
+    )
+    parser.add_argument(
+        "--llm-timeout-seconds",
+        type=int,
+        default=120,
+        help="How long to wait for the final text LLM review request.",
+    )
     parser.add_argument(
         "--login-timeout-seconds",
         type=int,
@@ -69,6 +87,9 @@ async def run(args: argparse.Namespace) -> None:
         max_routes=args.max_routes,
         max_clicks_per_route=args.max_clicks_per_route,
         max_seconds=args.max_seconds,
+        page_settle_timeout_seconds=args.page_settle_timeout_seconds,
+        vision_timeout_seconds=args.vision_timeout_seconds,
+        llm_timeout_seconds=args.llm_timeout_seconds,
         login_timeout_seconds=args.login_timeout_seconds,
     )
     explorer = Explorer(config)

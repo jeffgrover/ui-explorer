@@ -42,7 +42,10 @@ class CrawlConfig:
     artifact_dir: str = "artifacts"
     max_routes: int = 25
     max_clicks_per_route: int = 8
-    max_seconds: int = 3600
+    max_seconds: int = 1200
+    page_settle_timeout_seconds: int = 600
+    vision_timeout_seconds: int = 300
+    llm_timeout_seconds: int = 120
     login_timeout_seconds: int = 900
 
 
@@ -154,7 +157,10 @@ class Explorer:
 
     async def _settle_page(self, page: Page) -> None:
         try:
-            await page.wait_for_load_state("networkidle", timeout=5000)
+            await page.wait_for_load_state(
+                "networkidle",
+                timeout=self.config.page_settle_timeout_seconds * 1000,
+            )
         except Exception:
             await page.wait_for_timeout(1200)
 
@@ -430,7 +436,7 @@ class Explorer:
             method="POST",
         )
         try:
-            with urlopen(request, timeout=60) as response:
+            with urlopen(request, timeout=self.config.llm_timeout_seconds) as response:
                 data = json.loads(response.read().decode("utf-8"))
             return data["choices"][0]["message"]["content"]
         except Exception as exc:
@@ -497,7 +503,7 @@ class Explorer:
             method="POST",
         )
         try:
-            with urlopen(request, timeout=120) as response:
+            with urlopen(request, timeout=self.config.vision_timeout_seconds) as response:
                 data = json.loads(response.read().decode("utf-8"))
             return data["choices"][0]["message"]["content"]
         except Exception as exc:
