@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
+import mimetypes
 import re
 import time
 from dataclasses import asdict, dataclass, field
@@ -33,6 +35,9 @@ class CrawlConfig:
     app_url: str
     llm_endpoint: str | None = None
     llm_model: str = "llama3.1:8b"
+    visual_exploration: bool = False
+    vision_endpoint: str | None = None
+    vision_model: str | None = None
     profile_dir: str = ".ui-explorer-profile"
     artifact_dir: str = "artifacts"
     max_routes: int = 25
@@ -74,6 +79,7 @@ class PageRecord:
     links: list[ElementEntry] = field(default_factory=list)
     controls: list[ElementEntry] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    visual_notes: list[str] = field(default_factory=list)
 
 
 class Explorer:
@@ -176,7 +182,7 @@ class Explorer:
     async def _visit(self, context: BrowserContext, page: Page, url: str) -> None:
         self.console_buffer = []
         self.network_buffer = []
-        print(f"[{len(self.visited)}/{self.config.max_routes}] Visiting {url}")
+        print(f"[{len(self.visited) + 1}/{self.config.max_routes}] Visiting {url}")
         await page.goto(url, wait_until="domcontentloaded")
         await self._settle_page(page)
         if await self._pause_for_login_if_needed(page):
@@ -197,12 +203,26 @@ class Explorer:
         controls = await self._collect_controls(page)
         visible_errors = await self._visible_error_text(page)
         notes = []
+        visual_notes = []
         if visible_errors:
             notes.append(f"Visible error-like text found: {len(visible_errors)} item(s).")
         if self.console_buffer:
             notes.append(f"Console messages captured: {len(self.console_buffer)}.")
         if self.network_buffer:
             notes.append(f"Failed/error network events captured: {len(self.network_buffer)}.")
+
+        if self.config.visual_exploration:
+            visual_notes.append(
+                await asyncio.to_thread(
+                    self._request_visual_notes,
+                    screenshot_path,
+                    page.url,
+                    title,
+                    links,
+                    controls,
+                    visible_errors,
+                )
+            )
 
         for link in links:
             if link.href and self._is_allowed(link.href) and link.href not in self.visited:
@@ -219,6 +239,7 @@ class Explorer:
                 links=links,
                 controls=controls,
                 notes=notes,
+                visual_notes=visual_notes,
             )
         )
 
@@ -415,6 +436,78 @@ class Explorer:
         except Exception as exc:
             return f"LLM review failed: {exc}"
 
+    def _request_visual_notes(
+        self,
+        screenshot_path: Path,
+        url: str,
+        title: str,
+        links: list[ElementEntry],
+        controls: list[ElementEntry],
+        visible_errors: list[str],
+    ) -> str:
+        endpoint = self.config.vision_endpoint or self.config.llm_endpoint
+        model = self.config.vision_model or self.config.llm_model
+        if not endpoint:
+            return "Visual exploration skipped: no --vision-endpoint or --llm-endpoint was provided."
+
+        data_url = self._image_data_url(screenshot_path)
+        context = {
+            "url": url,
+            "title": title,
+            "visible_error_text": visible_errors[:10],
+            "links": [asdict(link) for link in links[:30]],
+            "controls": [asdict(control) for control in controls[:40]],
+        }
+        body = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are visually reviewing screenshots from a headed web-app crawler. "
+                        "Be concise and practical. Focus on visible UI regions, likely navigation "
+                        "affordances, modals/overlays, error states, empty/loading states, confusing "
+                        "layout, and follow-up targets for a human tester. Do not invent data that "
+                        "is not visible."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "Review this page screenshot for visual exploration notes. "
+                                f"DOM/context summary:\n{json.dumps(context, ensure_ascii=False)}"
+                            ),
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": data_url},
+                        },
+                    ],
+                },
+            ],
+            "temperature": 0.2,
+        }
+        request = Request(
+            endpoint,
+            data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=120) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            return data["choices"][0]["message"]["content"]
+        except Exception as exc:
+            return f"Visual review failed: {exc}"
+
+    def _image_data_url(self, path: Path) -> str:
+        mime_type = mimetypes.guess_type(path.name)[0] or "image/png"
+        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+        return f"data:{mime_type};base64,{encoded}"
+
     def _render_markdown(self, payload: dict[str, Any], llm_notes: str | None) -> str:
         lines = [
             "# UI Explorer Report",
@@ -457,6 +550,10 @@ class Explorer:
             for entry in record.network[:5]:
                 label = entry.status if entry.status is not None else entry.failure
                 lines.append(f"  - Network: {label} {entry.method} {entry.url}")
+            if record.visual_notes:
+                lines.extend(["", "#### Visual Notes", ""])
+                for note in record.visual_notes:
+                    lines.append(note.strip())
             lines.append("")
         return "\n".join(lines)
 

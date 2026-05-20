@@ -22,6 +22,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Model name sent to the OpenAI-compatible endpoint.",
     )
     parser.add_argument(
+        "--visual-exploration",
+        action="store_true",
+        help="Send page screenshots to a vision-capable OpenAI-compatible model for visual notes.",
+    )
+    parser.add_argument(
+        "--vision-endpoint",
+        help="Optional vision-capable /chat/completions endpoint. Defaults to --llm-endpoint.",
+    )
+    parser.add_argument(
+        "--vision-model",
+        help="Optional vision-capable model name. Defaults to --llm-model.",
+    )
+    parser.add_argument(
         "--profile-dir",
         default=".ui-explorer-profile",
         help="Browser profile directory. Reuse this to keep login cookies.",
@@ -48,6 +61,9 @@ async def run(args: argparse.Namespace) -> None:
         app_url=args.app_url,
         llm_endpoint=args.llm_endpoint,
         llm_model=args.llm_model,
+        visual_exploration=args.visual_exploration,
+        vision_endpoint=args.vision_endpoint,
+        vision_model=args.vision_model,
         profile_dir=args.profile_dir,
         artifact_dir=args.artifact_dir,
         max_routes=args.max_routes,
@@ -62,3 +78,7 @@ async def run(args: argparse.Namespace) -> None:
 def main() -> None:
     args = build_parser().parse_args()
     asyncio.run(run(args))
+
+
+if __name__ == "__main__":
+    main()

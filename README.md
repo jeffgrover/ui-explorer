@@ -27,6 +27,19 @@ ui-explorer \
   --llm-model llama3.1:8b
 ```
 
+For visual exploration with a vision-capable OpenAI-compatible endpoint:
+
+```bash
+ui-explorer \
+  --app-url http://localhost:3000 \
+  --visual-exploration \
+  --vision-endpoint http://localhost:1234/v1/chat/completions \
+  --vision-model qwen2.5-vl-7b-instruct
+```
+
+If `--vision-endpoint` is omitted, visual exploration uses `--llm-endpoint`.
+If `--vision-model` is omitted, it uses `--llm-model`.
+
 The browser always runs headed. If the first page looks like a login screen or
 redirects away from the app URL, the explorer pauses so you can log in. It
 continues after the browser returns to the original app origin/path.
